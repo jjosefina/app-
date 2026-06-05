@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro de Faltas – 4° Año</title>
+  <style>
+    body { font-family: Arial; background: #f1f4f8; margin: 0; padding: 20px; }
+    .box { max-width: 900px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    h2, h3 { margin-top: 0; }
+    input, button { padding: 10px; border-radius: 6px; border: 1px solid #ccc; margin-top: 8px; }
+    button { background: #2563eb; color: white; cursor: pointer; border: none; }
+    button:hover { background: #1e4fc7; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 10px; border-bottom: 1px solid #ddd; }
+    th { background: #e6ecff; }
+    .hidden { display: none; }
+    .tag { padding: 4px 8px; background: #dbeafe; border-radius: 6px; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="box">
+  <h2>Ingreso al Panel del Preceptor</h2>
+  <input id="user" placeholder="Usuario" style="width:100%">
+  <input id="pass" type="password" placeholder="Contraseña" style="width:100%">
+  <button id="btnLogin" style="width:100%; margin-top:10px">Ingresar</button>
+  <p id="loginError" style="color:red; display:none">Usuario o contraseña incorrectos</p>
+</div>
+
+<!-- PANEL PRINCIPAL -->
+<div id="panel" class="box hidden">
+  <h2>Registro de Faltas – 4° Año</h2>
+
+  <h3>Agregar Alumno</h3>
+  <input id="newStudent" placeholder="Nombre del alumno">
+  <button onclick="agregarAlumno()">Agregar</button>
+
+  <h3>Asistencia del día</h3>
+  <input type="date" id="fecha">
+  <button onclick="marcarTodos(true)">Marcar AUSENTES</button>
+  <button onclick="marcarTodos(false)">Marcar PRESENTES</button>
+
+  <div id="lista"></div>
+
+  <h3>Resumen</h3>
+  <table>
+    <thead><tr><th>Alumno</th><th>Faltas</th><th>Acciones</th></tr></thead>
+    <tbody id="resumen"></tbody>
+  </table>
+
+  <button onclick="resetear()" style="margin-top:20px; background:#444">Restablecer datos</button>
+</div>
+
+<script>
+// -------- LOGIN --------
+const USER = "preceptor";
+const PASS = "1234";
+
+document.getElementById("btnLogin").onclick = () => {
+  const u = document.getElementById("user").value;
+  const p = document.getElementById("pass").value;
+
+  if (u === USER && p === PASS) {
+    document.getElementById("loginScreen").classList.add("hidden");
+    document.getElementById("panel").classList.remove("hidden");
+    render();
+  } else {
+    document.getElementById("loginError").style.display = "block";
+  }
+};
+
+// -------- SISTEMA --------
+let state = JSON.parse(localStorage.getItem("faltas4") || '{"students":[],"records":{}}');
+
+function guardar() {
+  localStorage.setItem("faltas4", JSON.stringify(state));
+}
+
+function agregarAlumno() {
+  const nombre = document.getElementById("newStudent").value.trim();
+  if (!nombre) return alert("Escriba un nombre");
+  const id = "id" + Math.random().toString(36).slice(2);
+  state.students.push({ id, nombre });
+  state.records[id] = [];
+  guardar();
+  document.getElementById("newStudent").value = "";
+  render();
+}
+
+function cambiar(id, fecha) {
+  if (!fecha) return alert("Seleccione una fecha");
+  const lista = state.records[id];
+  const pos = lista.indexOf(fecha);
+
+  if (pos === -1) lista.push(fecha);
+  else lista.splice(pos, 1);
+
+  guardar();
+  render();
+}
+
+function marcarTodos(ausente) {
+  const fecha = document.getElementById("fecha").value;
+  if (!fecha) return alert("Seleccione una fecha");
+  state.students.forEach(s => {
+    const lista = state.records[s.id];
+    const pos = lista.indexOf(fecha);
+    if (ausente && pos === -1) lista.push(fecha);
+    if (!ausente && pos !== -1) lista.splice(pos, 1);
+  });
+  guardar();
+  render();
+}
+
+function render() {
+  const fecha = document.getElementById("fecha").value;
+  const listaDiv = document.getElementById("lista");
+
+  let html = `<table><tr><th>Alumno</th><th>Estado</th><th>Acción</th></tr>`;
+  state.students.forEach(s => {
+    const ausente = fecha && state.records[s.id].includes(fecha);
+    html += `<tr>
+      <td>${s.nombre}</td>
+      <td>${ausente ? '<span class="tag">Ausente</span>' : 'Presente'}</td>
+      <td><button onclick=\"cambiar('${s.id}','${fecha}')\">Cambiar</button></td>
+    </tr>`;
+  });
+
+  html += `</table>`;
+  listaDiv.innerHTML = html;
+
+  const resumen = document.getElementById("resumen");
+  resumen.innerHTML = "";
+  state.students.forEach(s => {
+    const cant = state.records[s.id].length;
+    resumen.innerHTML += `<tr>
+      <td>${s.nombre}</td>
+      <td>${cant}</td>
+      <td><button onclick=\"alert('${(state.records[s.id].join("\\n") || "Sin faltas")}')\">Ver</button></td>
+    </tr>`;
+  });
+}
+
+function resetear() {
+  if (confirm("¿Borrar todo?")) {
+    state = { students: [], records: {} };
+    guardar();
+    render();
+  }
+}
+</script>
+
+</body>
+</html>
